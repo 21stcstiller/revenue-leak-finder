@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Revenue Leak Finder — Trigg Digital</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#061B3A;
+    --navy-deep:#03122A;
+    --navy-abyss:#020C1F;
+    --blue:#33A5FA;
+    --aqua:#44D0BD;
+    --gold:#FFC24B;
+    --gold-deep:#F5A623;
+    --ink:#EAF2FF;
+    --muted:#8FA6C4;
+    --muted-dim:#5E739180;
+    --line:#1C3357;
+    --panel:#0A203F;
+    --panel-2:#0C284D;
+    --ok:#44D0BD;
+    --danger:#F97066;
+    --client-accent:#33A5FA;
+    --client-accent-2:#44D0BD;
+    --radius:18px;
+    --shadow:0 24px 60px -20px rgba(0,0,0,.6);
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--sans);
+    background:
+      radial-gradient(1200px 700px at 78% -8%, rgba(51,165,250,.16), transparent 60%),
+      radial-gradient(900px 600px at 8% 108%, rgba(68,208,189,.12), transparent 55%),
+      var(--navy);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    overflow-x:hidden;
+    transition:background .6s ease;
+  }
+  a{color:inherit}
+  button{font-family:inherit}
+  ::selection{background:var(--blue);color:var(--navy-abyss)}
+
+  /* ---------- Chrome ---------- */
+  .topbar{
+    position:fixed;top:0;left:0;right:0;z-index:60;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px clamp(18px,4vw,44px);
+    backdrop-filter:blur(14px);
+    background:linear-gradient(180deg, rgba(3,18,42,.82), rgba(3,18,42,0));
+  }
+  .brand{display:flex;align-items:center;gap:13px;font-weight:700;letter-spacing:-.01em}
+  .brand-logo{display:block;width:92px;height:auto;object-fit:contain;filter:brightness(0) invert(1)}
+  .brand small{display:block;font-weight:500;color:var(--muted);font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding-left:13px;border-left:1px solid var(--line)}
+  .cobrand{display:flex;align-items:center;gap:9px;margin-left:2px;min-width:0}
+  .cobrand-x{color:var(--muted);font-size:15px}
+  .prospect-logo-wrap{height:38px;min-width:112px;max-width:190px;padding:5px 9px;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 4px 16px rgba(0,0,0,.18)}
+  .prospect-logo{width:25px;height:25px;object-fit:contain;display:none;flex:none}
+  .prospect-name{font-size:10.5px;font-weight:800;color:#061B3A;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar .rlf{font-size:15px;font-weight:700}
+  .topbar-right{display:flex;align-items:center;gap:16px}
+  .restart{
+    border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--muted);
+    padding:8px 14px;border-radius:999px;font-size:12.5px;font-weight:600;cursor:pointer;
+    display:none;align-items:center;gap:7px;transition:.2s;
+  }
+  .restart:hover{color:var(--ink);border-color:var(--blue)}
+  .restart.show{display:inline-flex}
+
+  /* ---------- Pipeline rail ---------- */
+  .rail{
+    position:fixed;top:64px;left:0;right:0;z-index:50;
+    display:none;justify-content:center;padding:10px 16px;
+    background:linear-gradient(180deg, rgba(3,18,42,.9), rgba(3,18,42,0));
+    backdrop-filter:blur(8px);
+  }
+  .rail.show{display:flex}
+  .rail-inner{display:flex;align-items:center;gap:4px;max-width:820px;width:100%;justify-content:space-between}
+  .rstep{display:flex;align-items:center;gap:9px;flex:none;opacity:.4;transition:.45s}
+  .rstep .dot{
+    width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);
+    display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--muted);
+    background:var(--navy-deep);transition:.45s;flex:none;
+  }
+  .rstep .lbl{font-size:12.5px;font-weight:600;color:var(--muted);white-space:nowrap}
+  .rstep.active{opacity:1}
+  .rstep.active .dot{border-color:var(--client-accent);color:var(--navy-abyss);background:linear-gradient(135deg,var(--client-accent-2),var(--client-accent));box-shadow:0 0 0 4px rgba(51,165,250,.18)}
+  .rstep.active .lbl{color:var(--ink)}
+  .rstep.done{opacity:.85}
+  .rstep.done .dot{border-color:var(--aqua);background:var(--aqua);color:var(--navy-abyss)}
+  .rstep.revenue.active .dot{background:linear-gradient(135deg,var(--gold),var(--gold-deep));border-color:var(--gold);box-shadow:0 0 0 4px rgba(255,194,75,.22)}
+  .rconn{flex:1;height:1.5px;background:var(--line);position:relative;min-width:8px;margin:0 2px}
+  .rconn::after{content:"";position:absolute;inset:0;width:0;background:linear-gradient(90deg,var(--aqua),var(--blue));transition:width .5s}
+  .rconn.fill::after{width:100%}
+  @media(max-width:720px){ .rstep .lbl{display:none} .rail-inner{max-width:420px} }
+
+  /* ---------- Screen system ---------- */
+  .stage{max-width:1120px;margin:0 auto;padding:120px clamp(18px,4vw,40px) 90px}
+  .screen{display:none;animation:fadeUp .5s ease both}
+  .screen.active{display:block}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  /* ---------- Concept prologue ---------- */
+  .intro-head{max-width:760px;margin-bottom:30px}
+  .intro-layout{display:grid;grid-template-columns:.78fr 1.22fr;gap:22px;align-items:stretch}
+  .story-nav{display:grid;gap:10px;align-content:start}
+  .story-step{border:1px solid var(--line);border-radius:14px;background:rgba(3,18,42,.58);padding:17px;text-align:left;color:var(--ink);cursor:pointer;transition:.25s}
+  .story-step:hover{border-color:#2b4d80;transform:translateX(3px)}
+  .story-step.active{border-color:var(--blue);background:rgba(51,165,250,.08);box-shadow:0 0 0 3px rgba(51,165,250,.08)}
+  .story-step .sn{font-family:var(--mono);font-size:10px;color:var(--aqua);letter-spacing:.1em;margin-bottom:7px}
+  .story-step b{font-size:15px;display:block;margin-bottom:4px}
+  .story-step span{font-size:12.5px;color:var(--muted);line-height:1.4}
+  .story-stage{min-height:430px;border:1px solid var(--line);border-radius:22px;background:radial-gradient(circle at 70% 10%,rgba(51,165,250,.12),transparent 45%),linear-gradient(155deg,var(--panel),var(--navy-deep));padding:clamp(22px,4vw,38px);display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;position:relative}
+  .story-panel{display:none;animation:fadeUp .4s ease both}
+  .story-panel.active{display:block}
+  .story-panel h3{font-size:clamp(23px,3.2vw,34px);line-height:1.1;letter-spacing:-.025em;margin:0 0 12px;max-width:19ch}
+  .story-panel>p{color:var(--muted);line-height:1.55;margin:0;max-width:58ch}
+  .fragment-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:26px}
+  .fragment{border:1px solid var(--line);border-radius:11px;padding:13px 8px;text-align:center;background:var(--navy-abyss);font-size:11px;color:var(--muted);transform:rotate(var(--r));animation:floatFrag 3s ease-in-out infinite alternate}
+  .fragment i{display:block;font-style:normal;font-size:21px;margin-bottom:7px}
+  @keyframes floatFrag{to{transform:translateY(-5px) rotate(var(--r))}}
+  .leak-visual{display:grid;grid-template-columns:1fr auto 1fr;gap:15px;align-items:center;margin-top:30px}
+  .leak-box{border:1px solid var(--line);border-radius:14px;padding:20px;text-align:center;background:var(--navy-abyss)}
+  .leak-box b{display:block;font-size:28px;color:var(--gold);margin-bottom:5px}.leak-box span{font-size:12px;color:var(--muted)}
+  .leak-arrow{font-size:28px;color:var(--danger)}
+  .concept-flow{display:flex;align-items:center;gap:7px;margin-top:30px;flex-wrap:wrap}
+  .concept-flow b{border:1px solid var(--line);border-radius:999px;padding:10px 13px;font-size:12px;background:var(--navy-abyss)}
+  .concept-flow b:last-of-type{border-color:var(--gold);color:var(--gold)}
+  .concept-flow span{color:var(--blue)}
+  .tech-jobs{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:22px}.tech-jobs div{font-size:11.5px;line-height:1.45;color:var(--muted);border-left:2px solid var(--aqua);padding-left:10px}.tech-jobs b{display:block;color:var(--ink);margin-bottom:3px}
+  .story-controls{display:flex;justify-content:space-between;align-items:center;margin-top:24px;gap:14px}.story-progress{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  @media(max-width:820px){.intro-layout{grid-template-columns:1fr}.story-nav{grid-template-columns:repeat(3,1fr)}.story-step span{display:none}.story-stage{min-height:450px}}
+  @media(max-width:560px){.story-nav{grid-template-columns:1fr}.story-step{padding:12px}.fragment-grid{grid-template-columns:repeat(2,1fr)}.leak-visual{grid-template-columns:1fr}.leak-arrow{transform:rotate(90deg)}.tech-jobs{grid-template-columns:1fr}}
+
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:9px;font-size:12px;font-weight:700;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--aqua);margin-bottom:20px;
+  }
+  .eyebrow::before{content:"";width:26px;height:1.5px;background:var(--aqua)}
+  h1.big{
+    font-size:clamp(34px,6vw,66px);line-height:1.02;letter-spacing:-.03em;font-weight:800;
+    margin:0 0 22px;max-width:16ch;
+  }
+  h1.big .grad{background:linear-gradient(115deg,var(--aqua),var(--blue) 55%,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{font-size:clamp(16px,2vw,20px);line-height:1.55;color:var(--muted);max-width:56ch;margin:0 0 34px}
+  h2.sec{font-size:clamp(26px,4vw,40px);line-height:1.08;letter-spacing:-.025em;font-weight:800;margin:0 0 12px}
+  .sub{font-size:16px;color:var(--muted);max-width:60ch;margin:0 0 30px;line-height:1.5}
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    display:inline-flex;align-items:center;gap:11px;cursor:pointer;border:none;
+    font-weight:700;font-size:15.5px;letter-spacing:-.01em;padding:15px 26px;border-radius:13px;
+    transition:transform .15s, box-shadow .25s, filter .2s;color:var(--navy-abyss);
+    background:linear-gradient(120deg,var(--aqua),var(--blue));
+    box-shadow:0 14px 34px -12px rgba(51,165,250,.75);
+  }
+  .btn:hover{transform:translateY(-2px);filter:brightness(1.06)}
+  .btn:active{transform:translateY(0)}
+  .btn.gold{background:linear-gradient(120deg,var(--gold),var(--gold-deep));box-shadow:0 14px 34px -12px rgba(255,194,75,.7)}
+  .btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink);box-shadow:none}
+  .btn.ghost:hover{border-color:var(--blue)}
+  .btn .arw{transition:transform .2s}
+  .btn:hover .arw{transform:translateX(4px)}
+  .btn:focus-visible,.card:focus-visible,.restart:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+  .btnrow{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+
+  /* ---------- Hero specifics ---------- */
+  .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center}
+  @media(max-width:880px){.hero-grid{grid-template-columns:1fr;gap:30px}}
+  .hero-stat{display:flex;gap:26px;margin-top:38px;flex-wrap:wrap}
+  .hero-stat .s{}
+  .hero-stat .s b{display:block;font-size:26px;font-weight:800;letter-spacing:-.02em;background:linear-gradient(120deg,var(--aqua),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero-stat .s span{font-size:12.5px;color:var(--muted)}
+  .solution-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:28px}
+  .solution-role{border:1px solid var(--line);border-radius:13px;padding:14px 15px;background:rgba(3,18,42,.58)}
+  .solution-role b{display:block;font-size:12px;color:var(--ink);margin-bottom:5px}
+  .solution-role span{display:block;font-size:11.5px;line-height:1.45;color:var(--muted)}
+  .solution-role:nth-child(1) b{color:var(--aqua)}
+  .solution-role:nth-child(2) b{color:var(--blue)}
+  .solution-role:nth-child(3) b{color:var(--gold)}
+  .proofline{margin-top:26px;padding-top:18px;border-top:1px solid var(--line);font-size:10.5px;line-height:1.65;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+  @media(max-width:650px){.solution-strip{grid-template-columns:1fr}.proofline{letter-spacing:.06em}}
+
+  /* Hero art: fragmented -> unified */
+  .heroart{position:relative;aspect-ratio:1/1;max-width:440px;margin:0 auto;width:100%}
+  .heroart svg{width:100%;height:100%;overflow:visible}
+
+  /* ---------- Challenge cards ---------- */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:860px){.cards{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.cards{grid-template-columns:1fr}}
+  .card{
+    text-align:left;cursor:pointer;border:1px solid var(--line);border-radius:var(--radius);
+    background:linear-gradient(160deg, var(--panel), var(--navy-deep));
+    padding:22px 20px 20px;transition:.22s;position:relative;overflow:hidden;color:inherit;
+  }
+  .card::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--card-accent,var(--aqua)),var(--blue));transform:scaleX(0);transform-origin:left;transition:.3s}
+  .card:hover{transform:translateY(-4px);border-color:#2b4d80;box-shadow:var(--shadow)}
+  .card:hover::before{transform:scaleX(1)}
+  .card .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:rgba(51,165,250,.1);border:1px solid var(--line);margin-bottom:16px;font-size:22px}
+  .card .client{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--aqua);margin-bottom:8px}
+  .card h3{margin:0 0 8px;font-size:18px;letter-spacing:-.02em;font-weight:700}
+  .card p{margin:0;font-size:13.5px;line-height:1.5;color:var(--muted)}
+  .card .go{margin-top:16px;font-size:13px;font-weight:700;color:var(--blue);display:flex;align-items:center;gap:6px}
+
+  /* ---------- Console / today view ---------- */
+  .console{display:grid;grid-template-columns:1fr 1.05fr;gap:26px;align-items:start}
+  @media(max-width:900px){.console{grid-template-columns:1fr}}
+  .panel{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(165deg,var(--panel),var(--navy-deep));padding:24px}
+  .panel-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .panel-hd .t{font-size:12px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+  .tag{font-family:var(--mono);font-size:11px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .acct-name{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:2px 0 3px}
+  .acct-meta{font-size:13px;color:var(--muted);margin-bottom:20px}
+  .crm-rows{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .crm-rows .r{display:flex;justify-content:space-between;align-items:center;background:var(--navy-deep);padding:13px 15px}
+  .crm-rows .r span{color:var(--muted);font-size:13.5px}
+  .crm-rows .r b{font-family:var(--mono);font-size:14px;font-weight:500}
+  .prompt-q{margin-top:22px;font-size:16.5px;font-weight:600;line-height:1.45}
+  .prompt-q em{font-style:normal;color:var(--gold)}
+
+  .constel-wrap{position:relative;border:1px solid var(--line);border-radius:var(--radius);background:radial-gradient(circle at 50% 45%, #0B274D, var(--navy-abyss));overflow:hidden;min-height:420px;display:grid;place-items:center;padding:10px}
+  .constel-wrap svg{width:100%;height:100%;max-height:440px;overflow:visible}
+  .constel-cap{position:absolute;bottom:14px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.05em}
+
+  /* Node styling shared */
+  .cnode circle.core{transition:.5s}
+  .cnode text{font-family:var(--mono);font-size:9.5px;fill:var(--muted);text-anchor:middle;transition:.5s}
+  .cnode.lit text{fill:var(--ink)}
+  .clink{stroke:var(--line);stroke-width:1.4;fill:none;stroke-dasharray:5 5;opacity:.5}
+  .clink.live{stroke:url(#linkgrad);opacity:1;stroke-dasharray:none;filter:drop-shadow(0 0 4px rgba(51,165,250,.5))}
+
+  /* ---------- Signals stream ---------- */
+  .signals{display:grid;gap:12px}
+  .sig{
+    display:flex;gap:14px;align-items:flex-start;border:1px solid var(--line);border-radius:14px;
+    background:linear-gradient(120deg,var(--panel),var(--navy-deep));padding:15px 17px;
+    opacity:0;transform:translateY(10px);
+  }
+  .sig.in{animation:sigIn .5s ease forwards}
+  @keyframes sigIn{to{opacity:1;transform:none}}
+  .sig .si{width:40px;height:40px;flex:none;border-radius:11px;display:grid;place-items:center;font-size:19px;background:rgba(68,208,189,.1);border:1px solid var(--line)}
+  .sig .sc h4{margin:0 0 3px;font-size:14.5px;font-weight:700;letter-spacing:-.01em}
+  .sig .sc p{margin:0;font-size:13px;color:var(--muted);line-height:1.45}
+  .sig .src{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--aqua);letter-spacing:.06em;white-space:nowrap;padding-top:3px}
+  .sig.gap{border-color:#3a2b1f;background:linear-gradient(120deg,#241a12,var(--navy-deep))}
+  .sig.gap .si{background:rgba(255,194,75,.12);color:var(--gold)}
+  .sig.gap .src{color:var(--gold)}
+
+  .callout{
+    margin-top:22px;border:1px solid var(--line);border-left:3px solid var(--aqua);
+    border-radius:12px;background:rgba(68,208,189,.06);padding:16px 20px;font-size:15px;line-height:1.5;
+    opacity:0;transform:translateY(8px);
+  }
+  .callout.in{animation:sigIn .5s ease forwards}
+  .callout b{color:var(--aqua)}
+
+  /* ---------- Insight / investigate ---------- */
+  .invest{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+  @media(max-width:900px){.invest{grid-template-columns:1fr}}
+  .agent-panel{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(165deg,#0A244A,var(--navy-abyss));padding:0;overflow:hidden}
+  .agent-hd{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);background:rgba(51,165,250,.05)}
+  .agent-hd .av{width:34px;height:34px;border-radius:9px;background:conic-gradient(from 160deg,var(--aqua),var(--blue),var(--aqua));display:grid;place-items:center;flex:none}
+  .agent-hd .av::after{content:"";width:14px;height:14px;border-radius:3px;background:var(--navy-abyss)}
+  .agent-hd .nm{font-weight:700;font-size:14.5px}
+  .agent-hd .st{font-size:11.5px;color:var(--aqua);font-family:var(--mono);display:flex;align-items:center;gap:6px}
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--aqua);animation:pulse 1.2s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+  .reason{padding:20px;font-size:14px;line-height:1.6;min-height:120px}
+  .reason .line{opacity:0;transform:translateY(6px);animation:sigIn .45s ease forwards;margin-bottom:9px;color:var(--muted)}
+  .reason .line b{color:var(--ink)}
+  .reason .cursor{display:inline-block;width:8px;height:15px;background:var(--aqua);vertical-align:-2px;animation:blink 1s steps(2) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  .opp-card{border:1px solid #2b4d80;border-radius:var(--radius);background:linear-gradient(160deg,#0c2a52,var(--navy-deep));padding:24px;position:relative;overflow:hidden;opacity:0}
+  .opp-card.in{animation:popIn .55s cubic-bezier(.2,.9,.3,1.3) forwards}
+  @keyframes popIn{from{opacity:0;transform:scale(.94) translateY(10px)}to{opacity:1;transform:none}}
+  .opp-card::before{content:"";position:absolute;top:-40%;right:-20%;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,194,75,.2),transparent 70%)}
+  .opp-tag{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:10px;position:relative}
+  .opp-card h3{margin:0 0 6px;font-size:22px;letter-spacing:-.02em;position:relative}
+  .opp-card .desc{font-size:14px;color:var(--muted);margin:0 0 20px;line-height:1.5;position:relative}
+  .opp-val{position:relative}
+  .opp-val span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+  .opp-val b{display:block;font-size:44px;font-weight:800;letter-spacing:-.03em;color:var(--gold);line-height:1.1;margin-top:4px}
+  .evidence{list-style:none;margin:18px 0 0;padding:0;position:relative;display:grid;gap:9px}
+  .evidence li{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--ink)}
+  .evidence li::before{content:"✓";color:var(--aqua);font-weight:800;flex:none}
+
+  /* ---------- Recommend / execute ---------- */
+  .plan{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+  @media(max-width:900px){.plan{grid-template-columns:1fr}}
+  .actions{display:grid;gap:11px}
+  .action{
+    display:flex;align-items:center;gap:14px;border:1px solid var(--line);border-radius:13px;
+    background:var(--navy-deep);padding:15px 17px;transition:.3s;
+  }
+  .action .num{width:26px;height:26px;flex:none;border-radius:8px;display:grid;place-items:center;font-family:var(--mono);font-size:12px;font-weight:700;border:1px solid var(--line);color:var(--muted);transition:.3s}
+  .action .txt{font-size:14.5px;font-weight:600;flex:1}
+  .action .stat{font-family:var(--mono);font-size:11px;color:var(--muted-dim);transition:.3s}
+  .action.doing{border-color:var(--blue);background:rgba(51,165,250,.06)}
+  .action.doing .num{border-color:var(--blue);color:var(--blue)}
+  .action.doing .stat{color:var(--blue)}
+  .action.done{border-color:#1c4a44}
+  .action.done .num{background:var(--aqua);border-color:var(--aqua);color:var(--navy-abyss)}
+  .action.done .stat{color:var(--aqua)}
+  .exec-side{display:grid;gap:18px;align-content:start}
+
+  /* ---------- AMC journey ---------- */
+  .journey{display:grid;gap:0;position:relative;max-width:640px;margin:0 auto}
+  .jnode{opacity:0;transform:translateY(10px)}
+  .jnode.in{animation:sigIn .5s ease forwards}
+  .jbox{border:1px solid var(--line);border-radius:14px;background:linear-gradient(120deg,var(--panel),var(--navy-deep));padding:16px 20px}
+  .jbox .jq{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-bottom:6px}
+  .jbox .jt{font-size:15.5px;font-weight:600}
+  .jbranch{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+  @media(max-width:520px){.jbranch{grid-template-columns:1fr}}
+  .branch{border:1px solid var(--line);border-radius:11px;padding:12px 14px;font-size:13px;line-height:1.4}
+  .branch .yn{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;margin-bottom:5px;display:inline-block;padding:2px 8px;border-radius:6px}
+  .branch.yes .yn{background:rgba(68,208,189,.14);color:var(--aqua)}
+  .branch.no .yn{background:rgba(143,166,196,.12);color:var(--muted)}
+  .branch b{color:var(--ink)}
+  .branch span{color:var(--muted)}
+  .jconn{height:26px;width:2px;background:linear-gradient(var(--blue),var(--aqua));margin:0 auto;opacity:.5}
+
+  /* ---------- Revenue / before-after ---------- */
+  .ba{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:36px}
+  @media(max-width:760px){.ba{grid-template-columns:1fr}}
+  .ba-col{border:1px solid var(--line);border-radius:var(--radius);padding:24px;background:var(--navy-deep)}
+  .ba-col.before{border-color:#3a2530}
+  .ba-col.after{border-color:#1c4a44;background:linear-gradient(165deg,#08251f,var(--navy-deep))}
+  .ba-col h4{margin:0 0 16px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+  .ba-col.before h4{color:var(--danger)}
+  .ba-col.after h4{color:var(--aqua)}
+  .ba-col ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+  .ba-col li{display:flex;gap:11px;align-items:flex-start;font-size:14px;line-height:1.45;color:var(--ink)}
+  .ba-col li .m{flex:none;font-weight:800}
+  .before li .m{color:var(--danger)}
+  .after li .m{color:var(--aqua)}
+
+  .reveal-final{text-align:center;border:1px solid var(--line);border-radius:22px;padding:clamp(30px,5vw,54px);background:radial-gradient(700px 300px at 50% -20%,rgba(255,194,75,.12),transparent),linear-gradient(165deg,var(--panel),var(--navy-deep));position:relative;overflow:hidden}
+  .reveal-final .k1{font-size:15px;color:var(--muted);margin-bottom:10px}
+  .reveal-final .k2{font-size:clamp(26px,4.5vw,44px);font-weight:800;letter-spacing:-.025em;line-height:1.1;max-width:20ch;margin:0 auto}
+  .reveal-final .k2 .g{background:linear-gradient(115deg,var(--aqua),var(--blue) 60%,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .value-proof{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:760px;margin:28px auto 8px;text-align:left}
+  .value-proof .vp{border:1px solid var(--line);border-radius:13px;padding:15px;background:rgba(2,12,31,.58)}
+  .value-proof b{display:block;color:var(--ink);font-size:13px;margin-bottom:4px}
+  .value-proof span{font-size:11.5px;line-height:1.45;color:var(--muted)}
+  @media(max-width:650px){.value-proof{grid-template-columns:1fr}}
+  .value-pop{font-size:clamp(48px,9vw,86px);font-weight:800;letter-spacing:-.04em;background:linear-gradient(120deg,var(--gold),var(--gold-deep));-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1;margin:8px 0 4px}
+  .value-lbl{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.14em;font-weight:600;margin-bottom:30px}
+
+  .foot-cta{margin-top:40px;display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center}
+  .foot-cta .partners{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-dim);display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+
+  /* section nav footer within screens */
+  .nav-actions{margin-top:38px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .nav-hint{font-size:13px;color:var(--muted-dim);font-family:var(--mono)}
+
+  /* ---------- Toasts ---------- */
+  .toasts{position:fixed;bottom:24px;right:24px;z-index:80;display:flex;flex-direction:column;gap:10px;max-width:340px}
+  @media(max-width:520px){.toasts{left:16px;right:16px;max-width:none}}
+  .toast{
+    border:1px solid var(--line);border-radius:13px;background:rgba(10,32,63,.96);backdrop-filter:blur(10px);
+    padding:12px 14px;display:flex;gap:11px;align-items:flex-start;box-shadow:var(--shadow);
+    transform:translateX(120%);animation:toastIn .4s cubic-bezier(.2,.9,.3,1.2) forwards;
+  }
+  @keyframes toastIn{to{transform:none}}
+  .toast.out{animation:toastOut .35s ease forwards}
+  @keyframes toastOut{to{transform:translateX(120%);opacity:0}}
+  .toast .ta{width:30px;height:30px;border-radius:8px;flex:none;display:grid;place-items:center;font-size:15px;background:linear-gradient(135deg,var(--aqua),var(--blue))}
+  .toast .tb{font-size:12.5px;line-height:1.4}
+  .toast .tb b{display:block;font-size:13px;margin-bottom:1px}
+  .toast .tb span{color:var(--muted)}
+  .toast .tm{font-family:var(--mono);font-size:10px;color:var(--muted-dim);margin-top:3px}
+
+  /* confetti canvas */
+  #confetti{position:fixed;inset:0;pointer-events:none;z-index:70;display:none}
+
+  /* ---------- Responsive + accessibility hardening ---------- */
+  @media(max-width:760px){
+    .topbar{padding:10px 14px;background:rgba(3,18,42,.94);backdrop-filter:blur(16px)}
+    .brand{gap:8px}.brand-logo{width:72px}.brand small{display:none}.cobrand-x{font-size:12px}
+    .prospect-logo-wrap{height:30px;min-width:82px;max-width:120px;padding:4px 7px;gap:5px}.prospect-logo{width:20px;height:20px}.prospect-name{font-size:8.5px}
+    .topbar .rlf{display:none}.topbar-right{gap:8px}.restart{padding:7px 10px;font-size:11px}
+    .stage{padding:92px 16px 60px}.rail{top:50px;padding-top:8px}
+    h1.big{font-size:clamp(34px,11vw,50px)}.lede{font-size:16px}
+    .btn{width:100%;justify-content:center;padding:14px 18px}.btnrow{width:100%}.nav-actions{align-items:stretch}.nav-hint{text-align:center}
+    .panel,.opp-card{padding:19px}.constel-wrap{min-height:330px}.constel-wrap svg{max-height:340px}
+    .sig{padding:13px;gap:10px}.sig .src{font-size:9px}.sig .si{width:35px;height:35px}
+    .value-pop{font-size:clamp(48px,16vw,72px)}.reveal-final{padding:26px 18px}
+  }
+  @media(max-width:390px){.prospect-logo-wrap{min-width:74px;max-width:94px}.prospect-name{max-width:60px}.brand-logo{width:64px}.rail{top:46px}}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <img class="brand-logo" src="https://www.triggdigital.com/wp-content/uploads/2019/12/color_main_logo_header_124x60-v2.png" alt="Trigg Digital">
+    <small>Salesforce Summit Partner</small>
+    <div class="cobrand" aria-label="Co-branded experience">
+      <span class="cobrand-x">×</span>
+      <span class="prospect-logo-wrap"><img class="prospect-logo" id="prospect-logo" alt=""><span class="prospect-name" id="prospect-name">Your brand</span></span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="rlf">The Revenue Leak Finder</span>
+    <button class="restart" id="restartBtn" onclick="restart()">↺ Start over</button>
+  </div>
+</div>
+
+<div class="rail" id="rail">
+  <div class="rail-inner">
+    <div class="rstep" data-stage="signal"><span class="dot">1</span><span class="lbl">Signal</span></div>
+    <div class="rconn"></div>
+    <div class="rstep" data-stage="insight"><span class="dot">2</span><span class="lbl">Insight</span></div>
+    <div class="rconn"></div>
+    <div class="rstep" data-stage="recommend"><span class="dot">3</span><span class="lbl">Recommendation</span></div>
+    <div class="rconn"></div>
+    <div class="rstep" data-stage="action"><span class="dot">4</span><span class="lbl">Action</span></div>
+    <div class="rconn"></div>
+    <div class="rstep revenue" data-stage="revenue"><span class="dot">5</span><span class="lbl">Revenue</span></div>
+  </div>
+</div>
+
+<div class="stage">
+
+  <!-- INTERACTIVE CONCEPT PROLOGUE -->
+  <section class="screen active" id="s-intro">
+    <div class="intro-head">
+      <span class="eyebrow">The story behind the idea</span>
+      <h1 class="big">Why build a <span class="grad">Revenue Leak Finder?</span></h1>
+      <p class="lede">Explore the business challenge, why this concept is the strongest fit, and how the experience answers the brief.</p>
+    </div>
+    <div class="intro-layout">
+      <div class="story-nav" role="tablist" aria-label="Concept story">
+        <button class="story-step active" data-story="0" onclick="showStory(0)" role="tab"><div class="sn">01 · THE CHALLENGE</div><b>The truth is fragmented</b><span>The opportunity exists, but no team can see the whole picture.</span></button>
+        <button class="story-step" data-story="1" onclick="showStory(1)" role="tab"><div class="sn">02 · WHY THIS CONCEPT</div><b>One problem, many systems</b><span>A cross-functional story gives every Salesforce technology a real job.</span></button>
+        <button class="story-step" data-story="2" onclick="showStory(2)" role="tab"><div class="sn">03 · HOW WE ANSWER IT</div><b>Show, don't just tell</b><span>The microsite makes the operating model tangible and interactive.</span></button>
+      </div>
+      <div class="story-stage">
+        <div>
+          <div class="story-panel active" data-panel="0">
+            <h3>Companies have revenue hiding in plain sight.</h3>
+            <p>CRM holds only one part of the truth. Product usage, service friction, digital intent, contracts, market events and human conversations live elsewhere. Sales either misses the moment or spends hours assembling it manually.</p>
+            <div class="fragment-grid">
+              <div class="fragment" style="--r:-2deg"><i>💼</i>CRM</div><div class="fragment" style="--r:2deg"><i>📦</i>Orders</div><div class="fragment" style="--r:-1deg"><i>🎧</i>Service</div><div class="fragment" style="--r:2deg"><i>📧</i>Marketing</div>
+              <div class="fragment" style="--r:1deg"><i>🌐</i>Web intent</div><div class="fragment" style="--r:-2deg"><i>📄</i>Contracts</div><div class="fragment" style="--r:2deg"><i>📰</i>Market data</div><div class="fragment" style="--r:-1deg"><i>📝</i>Notes & email</div>
+            </div>
+          </div>
+          <div class="story-panel" data-panel="1">
+            <h3>The strongest showcase is a broken process that crosses boundaries.</h3>
+            <p>That creates a credible reason to combine data, autonomous reasoning and activation—rather than presenting three disconnected product demos.</p>
+            <div class="leak-visual"><div class="leak-box"><b>Known customer</b><span>Signals already exist</span></div><div class="leak-arrow">→</div><div class="leak-box"><b>Missed revenue</b><span>No shared context or coordinated action</span></div></div>
+            <div class="tech-jobs"><div><b>Data 360 connects</b>Identity and signals become one usable profile.</div><div><b>Agentforce reasons</b>Evidence becomes insight, value and a recommended plan.</div><div><b>AMC activates</b>The plan becomes an adaptive engagement across channels.</div></div>
+          </div>
+          <div class="story-panel" data-panel="2">
+            <h3>The experience demonstrates the answer end to end.</h3>
+            <p>Instead of describing a future state, the audience drives it: choosing a relevant sector, revealing hidden signals, watching the agent investigate, approving action and seeing revenue quantified.</p>
+            <div class="concept-flow"><b>Signal</b><span>→</span><b>Insight</b><span>→</span><b>Recommendation</b><span>→</span><b>Action</b><span>→</span><b>Revenue</b></div>
+            <div class="tech-jobs"><div><b>Compelling</b>A recognisable commercial problem with a measurable outcome.</div><div><b>Interactive</b>The visitor makes choices and triggers the transformation.</div><div><b>Consumption-led</b>Value is created only when data, reasoning and activation are used.</div></div>
+          </div>
+        </div>
+        <div class="story-controls">
+          <span class="story-progress" id="story-progress">1 / 3</span>
+          <button class="btn" id="story-next" onclick="nextStory()">Why this concept? <span class="arw">→</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HERO -->
+  <section class="screen" id="s-hero">
+    <div class="hero-grid">
+      <div>
+        <span class="eyebrow">Interactive Agentforce + Data 360 experience</span>
+        <h1 class="big">Your next sale is <span class="grad">already in your data.</span> You just can't see it.</h1>
+        <p class="lede">Most businesses do not have an opportunity problem. They have a signal problem. The Revenue Leak Finder connects fragmented customer data, reasons over the evidence, and activates the next best action — turning hidden demand into measurable revenue.</p>
+        <div class="btnrow">
+          <button class="btn" onclick="go('challenge')">Choose your challenge <span class="arw">→</span></button>
+          <button class="btn ghost" onclick="quickScenario('manufacturing')">See a worked example</button>
+        </div>
+        <div class="hero-stat">
+          <div class="s"><b>6+</b><span>signals unified in real time</span></div>
+          <div class="s"><b>5 steps</b><span>from signal to revenue</span></div>
+          <div class="s"><b>1 click</b><span>to execute the approved plan</span></div>
+        </div>
+        <div class="solution-strip" aria-label="Salesforce technology roles">
+          <div class="solution-role"><b>Data Cloud (Data 360)</b><span>Unifies identity, behaviour, transactions and external signals.</span></div>
+          <div class="solution-role"><b>Agentforce</b><span>Investigates the pattern, quantifies value and executes approved work.</span></div>
+          <div class="solution-role"><b>Agentforce Marketing Cloud</b><span>Activates an adaptive journey and hands buying intent back to sales.</span></div>
+        </div>
+        <div class="proofline">Patterns inspired by work across REHLKO · NEOS · Portico · Centre for Better Health · ASOS · TUI · Kingfisher · ADM</div>
+      </div>
+      <div class="heroart" id="heroart"></div>
+    </div>
+  </section>
+
+  <!-- CHALLENGE -->
+  <section class="screen" id="s-challenge">
+    <span class="eyebrow">Step 1 — Choose your challenge</span>
+    <h2 class="sec">Where is the revenue leaking?</h2>
+    <p class="sub">Choose a fictional customer scenario inspired by the sectors we know. The signals and opportunity change; the repeatable Salesforce pattern stays the same.</p>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- CONSOLE (today view) -->
+  <section class="screen" id="s-console">
+    <span class="eyebrow" id="console-eyebrow">The account today</span>
+    <h2 class="sec">What the salesperson sees</h2>
+    <p class="sub">This is the whole picture in CRM. It's accurate — and it's nowhere near enough to know what to do next.</p>
+    <div class="console">
+      <div class="panel">
+        <div class="panel-hd"><span class="t">CRM record</span><span class="tag" id="c-client">—</span></div>
+        <div class="acct-name" id="c-acct">—</div>
+        <div class="acct-meta" id="c-scenario">—</div>
+        <div class="crm-rows" id="c-crm"></div>
+        <div class="prompt-q">Is that enough information to know what to do next? <em id="c-hint">Probably not.</em></div>
+      </div>
+      <div class="constel-wrap">
+        <div id="constel"></div>
+        <div class="constel-cap" id="constel-cap">6 systems · 1 customer · not connected</div>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <button class="btn" onclick="startSignal()">Discover the opportunity <span class="arw">→</span></button>
+      <span class="nav-hint">Activates Data&nbsp;360 across the silos</span>
+    </div>
+  </section>
+
+  <!-- SIGNAL (Data 360) -->
+  <section class="screen" id="s-signal">
+    <span class="eyebrow">Step 2 — Data 360 connects the signals</span>
+    <h2 class="sec">The same data, finally in one place</h2>
+    <p class="sub">Nothing new was collected. Data&nbsp;360 unifies what already existed across the estate — and a pattern appears that CRM alone could never show.</p>
+    <div class="console">
+      <div class="constel-wrap">
+        <div id="constel2"></div>
+        <div class="constel-cap" id="constel2-cap">Unifying profile…</div>
+      </div>
+      <div>
+        <div class="signals" id="signals"></div>
+        <div class="callout" id="signal-callout"></div>
+      </div>
+    </div>
+    <div class="nav-actions" id="signal-nav" style="opacity:0;pointer-events:none">
+      <button class="btn" onclick="startInsight()">Ask Agentforce to investigate <span class="arw">→</span></button>
+      <span class="nav-hint">Reasoning across every signal</span>
+    </div>
+  </section>
+
+  <!-- INSIGHT (investigate) -->
+  <section class="screen" id="s-insight">
+    <span class="eyebrow">Step 3 — Agentforce investigates</span>
+    <h2 class="sec">It doesn't answer a question. It does the work.</h2>
+    <p class="sub">The agent reasons across every signal, weighs the evidence, and quantifies an opportunity that no report was going to surface on its own.</p>
+    <div class="invest">
+      <div class="agent-panel">
+        <div class="agent-hd">
+          <span class="av"></span>
+          <div>
+            <div class="nm">Agentforce · Sales Agent</div>
+            <div class="st"><span class="pulse"></span><span id="agent-status">Reasoning…</span></div>
+          </div>
+        </div>
+        <div class="reason" id="reason"></div>
+      </div>
+      <div class="opp-card" id="opp-card">
+        <div class="opp-tag">Opportunity identified</div>
+        <h3 id="opp-title">—</h3>
+        <p class="desc" id="opp-desc">—</p>
+        <div class="opp-val"><span>Estimated opportunity value</span><b id="opp-val">£0</b></div>
+        <ul class="evidence" id="opp-evidence"></ul>
+      </div>
+    </div>
+    <div class="nav-actions" id="insight-nav" style="opacity:0;pointer-events:none">
+      <button class="btn" onclick="toRecommend()">See the recommended plan <span class="arw">→</span></button>
+    </div>
+  </section>
+
+  <!-- RECOMMEND + EXECUTE -->
+  <section class="screen" id="s-recommend">
+    <span class="eyebrow">Step 4 — Agentforce recommends &amp; executes</span>
+    <h2 class="sec">From insight to a plan that runs itself</h2>
+    <p class="sub">The agent proposes the next best actions — then, on your say-so, carries them out across Salesforce. Watch the work happen.</p>
+    <div class="plan">
+      <div class="actions" id="actions"></div>
+      <div class="exec-side">
+        <div class="panel">
+          <div class="panel-hd"><span class="t">Execution</span><span class="tag" id="exec-tag">Ready</span></div>
+          <p class="sub" style="margin:0" id="exec-copy">Approve the plan and Agentforce will create the opportunity, brief the account executive, and prepare personalised outreach — logging every step.</p>
+          <div style="margin-top:18px" id="exec-btn-wrap">
+            <button class="btn gold" id="executeBtn" onclick="executePlan()">Execute plan <span class="arw">→</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="nav-actions" id="recommend-nav" style="opacity:0;pointer-events:none">
+      <button class="btn" onclick="startActivate()">Activate the engagement <span class="arw">→</span></button>
+      <span class="nav-hint">Hands over to Marketing Cloud</span>
+    </div>
+  </section>
+
+  <!-- ACTIVATE (AMC) -->
+  <section class="screen" id="s-activate">
+    <span class="eyebrow">Step 5 — Agentforce Marketing Cloud activates</span>
+    <h2 class="sec">Not one email. An adaptive journey.</h2>
+    <p class="sub">Marketing Cloud turns the opportunity into a journey that reacts to what the customer actually does — handing the deal back to sales at exactly the right moment.</p>
+    <div class="journey" id="journey"></div>
+    <div class="nav-actions" id="activate-nav" style="opacity:0;pointer-events:none">
+      <button class="btn gold" onclick="startRevenue()">See the outcome <span class="arw">→</span></button>
+    </div>
+  </section>
+
+  <!-- REVENUE -->
+  <section class="screen" id="s-revenue">
+    <span class="eyebrow">The outcome</span>
+    <h2 class="sec">Before &amp; after — same data, different result</h2>
+    <div class="ba">
+      <div class="ba-col before">
+        <h4>Before</h4>
+        <ul>
+          <li><span class="m">✕</span> Opportunity hidden across six systems</li>
+          <li><span class="m">✕</span> Salesperson manually researching the account</li>
+          <li><span class="m">✕</span> Generic, broadcast marketing</li>
+          <li><span class="m">✕</span> Reactive sales process</li>
+          <li><span class="m">✕</span> Revenue opportunity missed</li>
+        </ul>
+      </div>
+      <div class="ba-col after">
+        <h4>After</h4>
+        <ul>
+          <li><span class="m">✓</span> Data&nbsp;360 detects the signals</li>
+          <li><span class="m">✓</span> Agentforce investigates the opportunity</li>
+          <li><span class="m">✓</span> Agentforce recommends &amp; executes the actions</li>
+          <li><span class="m">✓</span> Marketing Cloud personalises the engagement</li>
+          <li><span class="m">✓</span> Sales engages at exactly the right moment</li>
+        </ul>
+      </div>
+    </div>
+    <div class="reveal-final">
+      <div class="k1">Opportunity surfaced, activated and quantified for <b id="rev-acct" style="color:var(--ink)">—</b></div>
+      <div class="value-pop" id="rev-value">£0</div>
+      <div class="value-lbl">recovered from data you already owned</div>
+      <div class="k2">The technology didn't create more data.<br><span class="g">It turned the data you already had into revenue.</span></div>
+      <div class="value-proof">
+        <div class="vp"><b>Use only what creates value</b><span>Consumption follows the signals unified, reasoning performed and journeys activated.</span></div>
+        <div class="vp"><b>Keep a human in control</b><span>Agentforce recommends the plan; the account team approves execution.</span></div>
+        <div class="vp"><b>Scale the pattern</b><span>Start with one revenue leak, then reuse the same operating model across teams and sectors.</span></div>
+      </div>
+      <div class="foot-cta">
+        <div class="btnrow">
+          <button class="btn" onclick="go('challenge')">Try another industry <span class="arw">→</span></button>
+          <button class="btn ghost" onclick="restart()">Back to the start</button>
+        </div>
+        <div class="partners">REHLKO · NEOS · Portico · Centre for Better Health · ASOS · TUI · Kingfisher · ADM</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="toasts" id="toasts"></div>
+<canvas id="confetti"></canvas>
+
+<script>
+"use strict";
+
+/* ============================ SCENARIO DATA ============================ */
+const SCENARIOS = {
+  ports:{
+    icon:"⚓", client:"Portico", label:"Ports & Logistics",
+    challenge:"Which customers could buy additional services?",
+    account:"Northgate Freight Services",
+    scenario:"Deep-sea container operator · customer 6 yrs",
+    hint:"Not even close.",
+    crm:[["Annual revenue","£680k"],["Open opportunities","2"],["Service cases","4 open"],["Last meeting","58 days ago"]],
+    signals:[
+      {i:"🌐",src:"WEB",h:"Browsing port automation",p:"Visited “Automated Stevedoring” pages 9 times this month."},
+      {i:"📦",src:"ORDERS",h:"Throughput up 41%",p:"Container volumes climbing quarter on quarter."},
+      {i:"🎧",src:"SERVICE",h:"Berth-scheduling strain",p:"Recurring cases about capacity at peak windows."},
+      {i:"📧",src:"MARKETING",h:"Engaged 3 automation campaigns",p:"Opened and clicked terminal-efficiency content."},
+      {i:"📰",src:"EXTERNAL",h:"New deep-sea route announced",p:"Press release confirms added weekly sailings."},
+      {i:"💼",src:"CRM",h:"No automation opportunity",p:"Nothing on the pipeline reflects any of this.",gap:true}
+    ],
+    callout:"Data 360 connected a capacity problem, a buying behaviour and a market event that lived in four different systems.",
+    opp:{title:"Terminal Automation & Warehousing",desc:"Northgate is outgrowing its current berth capacity as volumes and routes expand.",value:240000,
+      evidence:["41% rise in container throughput","Repeated automated-stevedoring research","Recurring berth-capacity service cases","Public new-route announcement","No matching opportunity in CRM"]},
+    reason:["Cross-referencing throughput trend against service history…","<b>41% volume growth</b> is coinciding with repeated berth-capacity cases.","Website behaviour shows sustained interest in <b>terminal automation</b>.","An external announcement confirms <b>new weekly sailings</b>.","No opportunity exists to capture this — this is unclaimed revenue."],
+    actions:["Create terminal automation opportunity","Assign named Account Executive","Generate account briefing pack","Recommend warehousing & handling services","Identify operations & procurement stakeholders","Draft personalised outreach to Ops Director"],
+    journey:[
+      {q:"Decision 1 · Engagement",t:"Has the account engaged with automation content?",yes:{t:"Send terminal efficiency case study",s:"Northgate matched — expansion proof point sent."},no:{t:"Send industry capacity insight",s:"Nurture with sector benchmark."}},
+      {q:"Decision 2 · Seniority",t:"Has an Operations Director engaged?",yes:{t:"Notify Account Executive",s:"Senior stakeholder active — AE alerted."},no:{t:"Continue nurture journey",s:"Keep warming the buying group."}},
+      {q:"Decision 3 · Intent",t:"Has buying intent increased?",yes:{t:"Agentforce creates sales task + briefing",s:"Intent threshold crossed — deal handed to sales."}}
+    ]
+  },
+
+  telecoms:{
+    icon:"📡", client:"NEOS", label:"Telecoms",
+    challenge:"Which customers are likely to need additional connectivity?",
+    account:"Meridian Connect Ltd",
+    scenario:"Regional B2B network operator · customer 4 yrs",
+    hint:"Not on its own.",
+    crm:[["Annual revenue","£510k"],["Open opportunities","1"],["Service cases","3 open"],["Last meeting","64 days ago"]],
+    signals:[
+      {i:"🌐",src:"WEB",h:"Pricing on higher tiers",p:"Repeated visits to enterprise bandwidth pricing."},
+      {i:"📦",src:"USAGE",h:"Utilisation up 38%",p:"Consistently peaking near contracted capacity."},
+      {i:"🎧",src:"SERVICE",h:"Capacity-related tickets",p:"Support cases citing congestion at peak."},
+      {i:"📧",src:"MARKETING",h:"Opened 5G rollout campaign",p:"Engaged with next-gen connectivity content."},
+      {i:"📰",src:"EXTERNAL",h:"Won a regional contract",p:"Awarded a multi-site public-sector framework."},
+      {i:"💼",src:"CRM",h:"No upgrade opportunity",p:"Pipeline shows only a routine renewal.",gap:true}
+    ],
+    callout:"A customer bumping against its capacity ceiling, actively pricing upgrades — and nobody in sales knew.",
+    opp:{title:"Capacity Upgrade & Additional Sites",desc:"Meridian is running hot on current capacity while expanding into new locations.",value:210000,
+      evidence:["38% rise in network utilisation","Enterprise-tier pricing research","Congestion-related support cases","New regional contract won","Only a flat renewal in pipeline"]},
+    reason:["Comparing utilisation trend with service tickets…","Utilisation is <b>up 38%</b> and repeatedly hitting the ceiling.","The customer is <b>pricing enterprise tiers</b> on the website.","A <b>new regional contract</b> will add multiple sites.","The current pipeline only shows a flat renewal."],
+    actions:["Create capacity upgrade opportunity","Assign named Account Executive","Generate account briefing pack","Recommend multi-site connectivity bundle","Identify IT & procurement stakeholders","Draft personalised outreach to IT Director"],
+    journey:[
+      {q:"Decision 1 · Engagement",t:"Has the account engaged with capacity content?",yes:{t:"Send scaling case study",s:"Meridian matched — scaling story delivered."},no:{t:"Send network reliability insight",s:"Nurture with reliability benchmark."}},
+      {q:"Decision 2 · Seniority",t:"Has an IT Director engaged?",yes:{t:"Notify Account Executive",s:"Decision-maker active — AE alerted."},no:{t:"Continue nurture journey",s:"Keep the buying group warm."}},
+      {q:"Decision 3 · Intent",t:"Has buying intent increased?",yes:{t:"Agentforce creates sales task + briefing",s:"Intent confirmed — deal routed to sales."}}
+    ]
+  },
+
+  retail:{
+    icon:"🛍️", client:"ASOS · Kingfisher", label:"Retail & Marketplace",
+    challenge:"Which brands, suppliers or partners are untapped revenue?",
+    account:"Verve Apparel Co",
+    scenario:"Marketplace seller & media partner · 3 yrs",
+    hint:"Far from it.",
+    crm:[["Annual revenue","£1.2m"],["Open opportunities","3"],["Service cases","2 open"],["Last meeting","47 days ago"]],
+    signals:[
+      {i:"🌐",src:"WEB",h:"Reading retail media docs",p:"Repeated visits to sponsored-placement onboarding."},
+      {i:"📦",src:"ORDERS",h:"SKU velocity up 52%",p:"Best-sellers accelerating across categories."},
+      {i:"🎧",src:"SERVICE",h:"Listing-scale queries",p:"Cases about expanding catalogue capacity."},
+      {i:"📧",src:"MARKETING",h:"Clicked retail-media campaign",p:"Engaged with sponsored-product content."},
+      {i:"📰",src:"EXTERNAL",h:"New category launch",p:"Announced expansion into home & garden."},
+      {i:"💼",src:"CRM",h:"No media / expansion opp",p:"Only standard marketplace fees on record.",gap:true}
+    ],
+    callout:"A fast-growing seller actively researching retail media — the highest-margin product on the shelf — with no opportunity attached.",
+    opp:{title:"Retail Media & Marketplace Expansion",desc:"Verve is scaling fast and exploring sponsored placements to fuel growth.",value:320000,
+      evidence:["52% rise in SKU velocity","Retail-media onboarding research","Catalogue-scale service cases","Public new-category launch","No media revenue in pipeline"]},
+    reason:["Cross-referencing sales velocity with browsing behaviour…","Best-seller velocity is <b>up 52%</b> across categories.","The partner is reading <b>retail media onboarding</b> repeatedly.","A <b>new category launch</b> signals appetite to scale.","No sponsored-placement opportunity exists yet."],
+    actions:["Create retail media opportunity","Assign Partner Account Manager","Generate partner performance briefing","Recommend sponsored-placement package","Identify brand & performance-marketing leads","Draft personalised outreach to Head of Growth"],
+    journey:[
+      {q:"Decision 1 · Engagement",t:"Has the partner engaged with retail media content?",yes:{t:"Send sponsored-placement ROI case study",s:"Verve matched — ROI proof point sent."},no:{t:"Send category growth insight",s:"Nurture with market benchmark."}},
+      {q:"Decision 2 · Seniority",t:"Has a Head of Growth engaged?",yes:{t:"Notify Partner Account Manager",s:"Growth lead active — PAM alerted."},no:{t:"Continue nurture journey",s:"Keep the account warm."}},
+      {q:"Decision 3 · Intent",t:"Has buying intent increased?",yes:{t:"Agentforce creates sales task + briefing",s:"Intent confirmed — routed to partnerships."}}
+    ]
+  },
+
+  travel:{
+    icon:"✈️", client:"TUI", label:"Travel & Leisure",
+    challenge:"Which customers should get which offer, and when?",
+    account:"Eleanor Whitfield",
+    scenario:"Loyalty member · 3 previous bookings",
+    hint:"Not yet.",
+    crm:[["Lifetime value","£8,400"],["Bookings","3 completed"],["Service cases","1 resolved"],["Last trip","9 months ago"]],
+    signals:[
+      {i:"🌐",src:"WEB",h:"Browsing long-haul luxury",p:"Repeated views of premium Indian Ocean resorts."},
+      {i:"📦",src:"BOOKINGS",h:"Upgraded every trip",p:"Consistently trades up on room and cabin."},
+      {i:"🎧",src:"SERVICE",h:"Asked about lounge access",p:"Enquired about airport lounge & fast-track."},
+      {i:"📧",src:"MARKETING",h:"Opens premium campaigns",p:"High engagement with luxury collection emails."},
+      {i:"📰",src:"EXTERNAL",h:"Anniversary approaching",p:"Milestone date derived from profile signals."},
+      {i:"💼",src:"CRM",h:"No offer queued",p:"Standard newsletter is all that's scheduled.",gap:true}
+    ],
+    callout:"A high-value member showing every sign of a premium celebration trip — about to receive the same generic newsletter as everyone else.",
+    opp:{title:"Premium Long-Haul Celebration",desc:"Eleanor is researching a luxury milestone trip and trades up whenever offered.",value:6200,
+      evidence:["Upgrades on every past booking","Sustained long-haul luxury browsing","Lounge & fast-track enquiry","High premium-campaign engagement","No tailored offer scheduled"]},
+    reason:["Analysing browsing patterns against booking history…","Every past booking was <b>traded up</b> to premium.","Recent browsing centres on <b>long-haul luxury resorts</b>.","A <b>milestone anniversary</b> is approaching.","Only a generic newsletter is currently queued."],
+    actions:["Create tailored offer opportunity","Assign premium travel concierge","Generate customer preference briefing","Recommend curated luxury package","Identify complementary add-ons","Draft personalised concierge outreach"],
+    journey:[
+      {q:"Decision 1 · Engagement",t:"Has the member engaged with luxury content?",yes:{t:"Send curated milestone collection",s:"Eleanor matched — celebration offer sent."},no:{t:"Send inspiration guide",s:"Nurture with destination ideas."}},
+      {q:"Decision 2 · Intent",t:"Has the member viewed a specific resort twice?",yes:{t:"Notify concierge with preferences",s:"Strong intent — concierge briefed."},no:{t:"Continue nurture journey",s:"Keep inspiring the member."}},
+      {q:"Decision 3 · Readiness",t:"Has booking intent increased?",yes:{t:"Agentforce creates concierge task + briefing",s:"Ready to book — concierge takes over."}}
+    ]
+  },
+
+  manufacturing:{
+    icon:"🏭", client:"REHLKO", label:"Manufacturing",
+    challenge:"Which customers are approaching a service, replacement or expansion?",
+    account:"Halden Industrial Group",
+    scenario:"Power resilience customer · 5 yrs",
+    hint:"Nowhere near.",
+    crm:[["Annual revenue","£420k"],["Open opportunities","3"],["Service cases","2 open"],["Last meeting","73 days ago"]],
+    signals:[
+      {i:"🌐",src:"WEB",h:"Reading expansion content",p:"Visited “International Expansion” pages 6 times."},
+      {i:"📦",src:"ORDERS",h:"Consumption up 34%",p:"Power product usage climbing steadily."},
+      {i:"🎧",src:"SERVICE",h:"Capacity-related cases",p:"Recurring support about load headroom."},
+      {i:"📧",src:"MARKETING",h:"Engaged 3 expansion campaigns",p:"Clicked resilience & scale content."},
+      {i:"📰",src:"EXTERNAL",h:"New European facility",p:"Company announced a new plant on the continent."},
+      {i:"💼",src:"CRM",h:"No expansion opportunity",p:"Pipeline doesn't reflect any of this yet.",gap:true}
+    ],
+    callout:"A 34% consumption rise, repeated capacity cases and a new-facility announcement — three systems telling one story CRM never assembled.",
+    opp:{title:"European Expansion — Power Resilience",desc:"Halden is expanding operations and will need resilient power at new capacity.",value:180000,
+      evidence:["34% rise in product consumption","Repeated expansion-content visits","Two capacity-related support cases","New European facility announced","No current opportunity exists"]},
+    reason:["Correlating consumption trend with content behaviour…","Product consumption is <b>up 34%</b> and still climbing.","Repeated visits to <b>international expansion</b> pages.","Two <b>capacity-related</b> support cases logged.","An external announcement confirms a <b>new European facility</b>.","No opportunity exists — this expansion is invisible to sales."],
+    actions:["Create expansion opportunity","Assign named Account Executive","Generate account briefing pack","Recommend resilient power products","Identify engineering & facilities stakeholders","Draft personalised outreach to Operations Lead"],
+    journey:[
+      {q:"Decision 1 · Engagement",t:"Has the account engaged with expansion content?",yes:{t:"Send expansion case study",s:"Halden matched — expansion proof sent."},no:{t:"Send industry resilience insight",s:"Nurture with sector benchmark."}},
+      {q:"Decision 2 · Seniority",t:"Has a senior stakeholder engaged?",yes:{t:"Notify Account Executive",s:"Senior stakeholder active — AE alerted."},no:{t:"Continue nurture journey",s:"Keep warming the buying group."}},
+      {q:"Decision 3 · Intent",t:"Has buying intent increased?",yes:{t:"Agentforce creates sales task + briefing",s:"Intent confirmed — deal handed to sales."}}
+    ]
+  },
+
+  finserv:{
+    icon:"📈", client:"ADM", label:"Financial Services",
+    challenge:"Which clients have changing behaviours that create opportunity or risk?",
+    account:"Sterling & Roe Partners",
+    scenario:"Wealth management relationship · 7 yrs",
+    hint:"Not remotely.",
+    crm:[["Assets under advice","£2.1m"],["Open opportunities","1"],["Service cases","0 open"],["Last review","81 days ago"]],
+    signals:[
+      {i:"🌐",src:"WEB",h:"Reading succession content",p:"Repeated visits to business-exit planning pages."},
+      {i:"📦",src:"ACTIVITY",h:"Cash balance shift",p:"Unusual large inflow changing the portfolio mix."},
+      {i:"🎧",src:"SERVICE",h:"Asked about protection",p:"Enquiry about additional cover and structuring."},
+      {i:"📧",src:"MARKETING",h:"Engaged wealth-transfer emails",p:"Clicked estate & succession content."},
+      {i:"📰",src:"EXTERNAL",h:"Business sale reported",p:"Trade press confirms a completed company sale."},
+      {i:"💼",src:"CRM",h:"No review scheduled",p:"Only a routine annual review on file.",gap:true}
+    ],
+    callout:"A liquidity event, succession research and a protection enquiry — a moment that's equal parts opportunity and risk, invisible in CRM.",
+    opp:{title:"Wealth Transition & Protection Review",desc:"A liquidity event and succession signals point to a major advice moment.",value:150000,
+      evidence:["Large unexplained cash inflow","Business-exit content research","Protection & structuring enquiry","Reported company sale","No review beyond the routine annual"]},
+    reason:["Reviewing account activity against engagement…","An <b>unusual cash inflow</b> has shifted the portfolio.","The client is reading <b>business-exit and succession</b> content.","A service enquiry raised <b>additional protection</b>.","Trade press confirms a <b>completed business sale</b>.","Only a routine review is scheduled — this needs advice now."],
+    actions:["Create wealth-transition opportunity","Assign senior relationship manager","Generate client situation briefing","Recommend protection & structuring review","Identify family & legal stakeholders","Draft personalised outreach for a review"],
+    journey:[
+      {q:"Decision 1 · Engagement",t:"Has the client engaged with transition content?",yes:{t:"Send succession planning guide",s:"Sterling & Roe matched — guide delivered."},no:{t:"Send market outlook insight",s:"Nurture with tailored commentary."}},
+      {q:"Decision 2 · Seniority",t:"Has the principal responded?",yes:{t:"Notify Relationship Manager",s:"Principal engaged — RM alerted."},no:{t:"Continue nurture journey",s:"Keep the relationship warm."}},
+      {q:"Decision 3 · Intent",t:"Has advice readiness increased?",yes:{t:"Agentforce books review + prepares briefing",s:"Client ready — review booked for the RM."}}
+    ]
+  },
+
+  health:{
+    icon:"🌿", client:"Centre for Better Health", label:"Health & Wellbeing",
+    challenge:"Which people need timely support before they disengage?",
+    account:"Community Wellbeing Cohort",
+    scenario:"Employment and wellbeing programme · 286 active participants",
+    hint:"The risk is hidden in the gaps.",
+    crm:[["Active participants","286"],["Awaiting contact","41"],["Open referrals","18"],["Average last touch","36 days"]],
+    signals:[
+      {i:"🌐",src:"WEB",h:"Support content revisited",p:"Repeated visits to anxiety and employment-support resources."},
+      {i:"📅",src:"ACTIVITY",h:"Attendance declining",p:"Three missed or rearranged sessions in six weeks."},
+      {i:"🎧",src:"SERVICE",h:"Contact preference changed",p:"Participant asked for lower-pressure digital check-ins."},
+      {i:"📧",src:"MARKETING",h:"Practical content engaged",p:"High engagement with confidence and return-to-work guidance."},
+      {i:"📄",src:"REFERRAL",h:"Referral milestone approaching",p:"Funded support window reaches a decision point in 21 days."},
+      {i:"💼",src:"CRM",h:"No intervention queued",p:"The record shows activity, but not the emerging disengagement risk.",gap:true}
+    ],
+    callout:"Data 360 connects engagement, attendance, preference and referral timing without asking a practitioner to assemble the pattern manually.",
+    opp:{title:"Timely Re-engagement & Support Plan",desc:"A personalised, low-pressure intervention can protect engagement and improve the chance of a positive outcome.",value:48000,
+      evidence:["Three recent missed sessions","Support content revisited repeatedly","Digital contact preference recorded","Referral milestone in 21 days","No coordinated intervention queued"]},
+    reason:["Reviewing attendance against content and contact preferences…","Session attendance has <b>declined for six weeks</b>.","The participant is still engaging with <b>practical support content</b>.","A preference for <b>lower-pressure digital contact</b> is recorded.","The funded referral window reaches a <b>decision point in 21 days</b>.","A timely, personalised intervention is recommended."],
+    actions:["Create re-engagement support plan","Assign named wellbeing practitioner","Generate participant context briefing","Recommend preferred contact route","Identify appropriate programme resources","Draft empathetic check-in for review"],
+    journey:[
+      {q:"Decision 1 · Preference",t:"Has the participant requested digital-first contact?",yes:{t:"Send a low-pressure check-in",s:"Preference respected — simple choices offered."},no:{t:"Offer a practitioner call",s:"Human support route prioritised."}},
+      {q:"Decision 2 · Engagement",t:"Has the participant engaged with the support options?",yes:{t:"Notify wellbeing practitioner",s:"Engagement restored — practitioner briefed."},no:{t:"Adjust timing and channel",s:"Journey adapts without overwhelming the participant."}},
+      {q:"Decision 3 · Outcome",t:"Is the participant ready for the next step?",yes:{t:"Agentforce prepares the next-session brief",s:"Context ready — practitioner remains in control."}}
+    ]
+  }
+};
+
+const ORDER = ["ports","telecoms","retail","travel","manufacturing","finserv","health"];
+const BRAND_THEMES = {
+  ports:{name:"Portico",domain:"porticoshipping.com",accent:"#F36F3D",accent2:"#55C4C6"},
+  telecoms:{name:"NEOS",domain:"neosnetworks.com",accent:"#F15A29",accent2:"#7CC242"},
+  retail:{name:"ASOS + Kingfisher",domain:"asos.com",accent:"#D4145A",accent2:"#FFB81C"},
+  travel:{name:"TUI",domain:"tui.co.uk",accent:"#D40E14",accent2:"#70CBF4"},
+  manufacturing:{name:"REHLKO",domain:"rehlko.com",accent:"#006FBA",accent2:"#B7C9D3"},
+  finserv:{name:"ADM",domain:"admis.com",accent:"#005B96",accent2:"#7AB800"},
+  health:{name:"Centre for Better Health",domain:"centreforbetterhealth.org.uk",accent:"#58A66A",accent2:"#F2B544"}
+};
+const NODE_DEFS = [
+  {k:"CRM",label:"CRM",a:-90},
+  {k:"ORDERS",label:"Orders",a:-30},
+  {k:"SERVICE",label:"Service",a:30},
+  {k:"MARKETING",label:"Marketing",a:90},
+  {k:"EXTERNAL",label:"External",a:150},
+  {k:"WEB",label:"Website",a:210}
+];
+
+/* ============================ STATE ============================ */
+let current = null;          // scenario key
+let stageIndex = -1;         // pipeline stage
+let insightToken = 0;        // guards async reasoning against re-runs
+const STAGES = ["signal","insight","recommend","action","revenue"];
+
+/* ============================ NAV ============================ */
+const screens = {
+  intro:"s-intro", hero:"s-hero", challenge:"s-challenge", console:"s-console",
+  signal:"s-signal", insight:"s-insight", recommend:"s-recommend",
+  activate:"s-activate", revenue:"s-revenue"
+};
+
+function go(name){
+  Object.values(screens).forEach(id=>document.getElementById(id).classList.remove("active"));
+  document.getElementById(screens[name]).classList.add("active");
+  window.scrollTo({top:0,behavior:"smooth"});
+  document.getElementById("restartBtn").classList.toggle("show", !["intro","hero"].includes(name));
+  const railScreens=["console","signal","insight","recommend","activate","revenue"];
+  document.getElementById("rail").classList.toggle("show", railScreens.includes(name));
+}
+
+function restart(){
+  current=null; stageIndex=-1; resetRail(); clearToasts();
+  resetBrand();
+  showStory(0); go("intro");
+}
+
+function applyBrand(key){
+  const brand=BRAND_THEMES[key];
+  if(!brand) return;
+  const root=document.documentElement;
+  root.style.setProperty("--client-accent",brand.accent);
+  root.style.setProperty("--client-accent-2",brand.accent2);
+  root.style.setProperty("--blue",brand.accent);
+  root.style.setProperty("--aqua",brand.accent2);
+  const name=document.getElementById("prospect-name");
+  const logo=document.getElementById("prospect-logo");
+  name.textContent=brand.name;
+  name.style.display="block";
+  logo.style.display="none";
+  logo.alt=`${brand.name} logo`;
+  logo.onload=()=>{logo.style.display="block";name.style.display="block";};
+  logo.onerror=()=>{logo.style.display="none";name.style.display="block";};
+  logo.src=`https://www.google.com/s2/favicons?domain_url=https://${brand.domain}&sz=128`;
+  document.body.style.background=`radial-gradient(1000px 620px at 82% -8%, ${brand.accent}24, transparent 60%), radial-gradient(900px 600px at 8% 108%, ${brand.accent2}1f, transparent 55%), var(--navy)`;
+}
+function resetBrand(){
+  document.documentElement.style.setProperty("--client-accent","#33A5FA");
+  document.documentElement.style.setProperty("--client-accent-2","#44D0BD");
+  document.documentElement.style.setProperty("--blue","#33A5FA");
+  document.documentElement.style.setProperty("--aqua","#44D0BD");
+  document.body.style.background="";
+  const logo=document.getElementById("prospect-logo"),name=document.getElementById("prospect-name");
+  logo.removeAttribute("src");logo.style.display="none";name.textContent="Your brand";name.style.display="block";
+}
+
+/* ============================ CONCEPT PROLOGUE ============================ */
+let storyIndex=0;
+function showStory(index){
+  storyIndex=Math.max(0,Math.min(2,index));
+  document.querySelectorAll(".story-step").forEach((el,i)=>el.classList.toggle("active",i===storyIndex));
+  document.querySelectorAll(".story-panel").forEach((el,i)=>el.classList.toggle("active",i===storyIndex));
+  const progress=document.getElementById("story-progress");
+  const next=document.getElementById("story-next");
+  if(progress) progress.textContent=`${storyIndex+1} / 3`;
+  if(next) next.innerHTML=storyIndex===0?'Why this concept? <span class="arw">→</span>':storyIndex===1?'How does it meet the challenge? <span class="arw">→</span>':'Start the interactive demo <span class="arw">→</span>';
+}
+function nextStory(){
+  if(storyIndex<2) showStory(storyIndex+1);
+  else go("hero");
+}
+
+/* ============================ RAIL ============================ */
+function resetRail(){
+  document.querySelectorAll(".rstep").forEach(s=>s.classList.remove("active","done"));
+  document.querySelectorAll(".rconn").forEach(c=>c.classList.remove("fill"));
+}
+function setStage(stage){
+  const steps=[...document.querySelectorAll(".rstep")];
+  const conns=[...document.querySelectorAll(".rconn")];
+  const idx=STAGES.indexOf(stage);
+  steps.forEach((s,i)=>{
+    s.classList.toggle("active", i===idx);
+    s.classList.toggle("done", i<idx);
+  });
+  conns.forEach((c,i)=>c.classList.toggle("fill", i<idx));
+  stageIndex=idx;
+}
+
+/* ============================ HERO ART ============================ */
+function heroArt(){
+  const NS="http://www.w3.org/2000/svg";
+  const svg=document.createElementNS(NS,"svg");
+  svg.setAttribute("viewBox","0 0 400 400");
+  const defs=document.createElementNS(NS,"defs");
+  defs.innerHTML=`<radialGradient id="hg" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#44D0BD"/><stop offset="100%" stop-color="#33A5FA"/></radialGradient>
+    <linearGradient id="hl" gradientUnits="userSpaceOnUse" x1="60" y1="60" x2="340" y2="340">
+    <stop offset="0%" stop-color="#44D0BD"/><stop offset="100%" stop-color="#33A5FA"/></linearGradient>`;
+  svg.appendChild(defs);
+  const cx=200,cy=200,R=140;
+  // links
+  NODE_DEFS.forEach((n,i)=>{
+    const a=n.a*Math.PI/180, x=cx+R*Math.cos(a), y=cy+R*Math.sin(a);
+    const l=document.createElementNS(NS,"line");
+    l.setAttribute("x1",cx);l.setAttribute("y1",cy);l.setAttribute("x2",x);l.setAttribute("y2",y);
+    l.setAttribute("stroke","url(#hl)");l.setAttribute("stroke-width","1.5");
+    l.setAttribute("opacity","0");
+    l.style.animation=`heroLink .6s ease ${.4+i*.12}s forwards`;
+    svg.appendChild(l);
+  });
+  // outer nodes
+  NODE_DEFS.forEach((n,i)=>{
+    const a=n.a*Math.PI/180, x=cx+R*Math.cos(a), y=cy+R*Math.sin(a);
+    const g=document.createElementNS(NS,"g");
+    g.setAttribute("opacity","0");
+    g.style.animation=`heroPop .5s cubic-bezier(.2,.9,.3,1.4) ${i*.12}s forwards`;
+    const c=document.createElementNS(NS,"circle");
+    c.setAttribute("cx",x);c.setAttribute("cy",y);c.setAttribute("r","20");
+    c.setAttribute("fill","#0A203F");c.setAttribute("stroke","#1C3357");c.setAttribute("stroke-width","1.5");
+    const t=document.createElementNS(NS,"text");
+    t.setAttribute("x",x);t.setAttribute("y",y+4);t.setAttribute("text-anchor","middle");
+    t.setAttribute("font-size","9");t.setAttribute("font-family","JetBrains Mono, monospace");t.setAttribute("fill","#8FA6C4");
+    t.textContent=n.label;
+    g.appendChild(c);g.appendChild(t);svg.appendChild(g);
+  });
+  // core
+  const core=document.createElementNS(NS,"g");
+  core.style.animation="heroPop .6s cubic-bezier(.2,.9,.3,1.4) .9s both";
+  const cc=document.createElementNS(NS,"circle");
+  cc.setAttribute("cx",cx);cc.setAttribute("cy",cy);cc.setAttribute("r","40");
+  cc.setAttribute("fill","url(#hg)");
+  const pulse=document.createElementNS(NS,"circle");
+  pulse.setAttribute("cx",cx);pulse.setAttribute("cy",cy);pulse.setAttribute("r","40");
+  pulse.setAttribute("fill","none");pulse.setAttribute("stroke","#44D0BD");pulse.setAttribute("stroke-width","2");
+  pulse.style.animation="heroPulse 2.4s ease-out 1.4s infinite";
+  const ct=document.createElementNS(NS,"text");
+  ct.setAttribute("x",cx);ct.setAttribute("y",cy+5);ct.setAttribute("text-anchor","middle");
+  ct.setAttribute("font-size","13");ct.setAttribute("font-weight","700");ct.setAttribute("font-family","Plus Jakarta Sans, sans-serif");ct.setAttribute("fill","#020C1F");
+  ct.textContent="Customer";
+  core.appendChild(pulse);core.appendChild(cc);core.appendChild(ct);svg.appendChild(core);
+  document.getElementById("heroart").appendChild(svg);
+  // keyframes injected once
+  if(!document.getElementById("heroKF")){
+    const st=document.createElement("style");st.id="heroKF";
+    st.textContent=`@keyframes heroLink{to{opacity:.55}}@keyframes heroPop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}@keyframes heroPulse{0%{opacity:.7;transform:scale(1);transform-origin:${cx}px ${cy}px}100%{opacity:0;transform:scale(2);transform-origin:${cx}px ${cy}px}}`;
+    document.head.appendChild(st);
+  }
+}
+
+/* ============================ CHALLENGE CARDS ============================ */
+function buildCards(){
+  const wrap=document.getElementById("cards");
+  wrap.innerHTML="";
+  ORDER.forEach(key=>{
+    const s=SCENARIOS[key];
+    const brand=BRAND_THEMES[key];
+    const b=document.createElement("button");
+    b.className="card";
+    b.dataset.theme=key;
+    b.style.setProperty("--card-accent",brand.accent);
+    b.onclick=()=>selectScenario(key);
+    b.innerHTML=`<div class="ic">${s.icon}</div>
+      <div class="client">${s.client}</div>
+      <h3>${s.label}</h3>
+      <p>${s.challenge}</p>
+      <div class="go">Load ${s.account.split(" ")[0]} →</div>`;
+    wrap.appendChild(b);
+  });
+}
+
+/* ============================ CONSTELLATION ============================ */
+function buildConstellation(mountId, capId, lit){
+  const mount=document.getElementById(mountId);
+  mount.innerHTML="";
+  const NS="http://www.w3.org/2000/svg";
+  const svg=document.createElementNS(NS,"svg");
+  svg.setAttribute("viewBox","0 0 400 400");
+  const defs=document.createElementNS(NS,"defs");
+  defs.innerHTML=`<linearGradient id="linkgrad" gradientUnits="userSpaceOnUse" x1="60" y1="60" x2="340" y2="340">
+    <stop offset="0%" stop-color="#44D0BD"/><stop offset="100%" stop-color="#33A5FA"/></linearGradient>`;
+  svg.appendChild(defs);
+  const cx=200,cy=200,R=135;
+  const links=[], nodes=[];
+  NODE_DEFS.forEach(n=>{
+    const a=n.a*Math.PI/180, x=cx+R*Math.cos(a), y=cy+R*Math.sin(a);
+    const l=document.createElementNS(NS,"path");
+    l.setAttribute("d",`M${cx} ${cy} L${x} ${y}`);
+    l.setAttribute("class","clink");
+    l.dataset.k=n.k;
+    svg.appendChild(l); links.push(l);
+  });
+  NODE_DEFS.forEach(n=>{
+    const a=n.a*Math.PI/180, x=cx+R*Math.cos(a), y=cy+R*Math.sin(a);
+    const g=document.createElementNS(NS,"g");
+    g.setAttribute("class","cnode");g.dataset.k=n.k;
+    const c=document.createElementNS(NS,"circle");
+    c.setAttribute("class","core");
+    c.setAttribute("cx",x);c.setAttribute("cy",y);c.setAttribute("r","22");
+    c.setAttribute("fill","#0A203F");c.setAttribute("stroke","#1C3357");c.setAttribute("stroke-width","1.5");
+    const t=document.createElementNS(NS,"text");
+    t.setAttribute("x",x);t.setAttribute("y",y+4);t.textContent=n.label;
+    g.appendChild(c);g.appendChild(t);svg.appendChild(g);nodes.push(g);
+  });
+  // core
+  const coreG=document.createElementNS(NS,"g");
+  const cc=document.createElementNS(NS,"circle");
+  cc.setAttribute("cx",cx);cc.setAttribute("cy",cy);cc.setAttribute("r","38");
+  cc.setAttribute("fill",lit?"url(#linkgrad)":"#0A203F");
+  cc.setAttribute("stroke",lit?"#44D0BD":"#1C3357");cc.setAttribute("stroke-width","1.5");
+  const ct=document.createElementNS(NS,"text");
+  ct.setAttribute("x",cx);ct.setAttribute("y",cy+4);ct.setAttribute("text-anchor","middle");
+  ct.setAttribute("font-size","11");ct.setAttribute("font-weight","700");
+  ct.setAttribute("font-family","Plus Jakarta Sans, sans-serif");ct.setAttribute("fill",lit?"#020C1F":"#8FA6C4");
+  ct.textContent="Profile";
+  coreG.appendChild(cc);coreG.appendChild(ct);svg.appendChild(coreG);
+  mount.appendChild(svg);
+  return {links,nodes};
+}
+
+function litConstellationStep(refs, capEl){
+  // reveal links + light nodes with stagger
+  const cap=document.getElementById(capEl);
+  const keys=NODE_DEFS.map(n=>n.k);
+  keys.forEach((k,i)=>{
+    setTimeout(()=>{
+      refs.links.filter(l=>l.dataset.k===k).forEach(l=>l.classList.add("live"));
+      refs.nodes.filter(n=>n.dataset.k===k).forEach(n=>n.classList.add("lit"));
+      if(cap) cap.textContent = `Connecting ${k.toLowerCase()}…`;
+    }, 300 + i*260);
+  });
+  setTimeout(()=>{ if(cap) cap.textContent="Unified customer profile · 6/6 systems connected"; }, 300+keys.length*260);
+}
+
+/* ============================ FLOW: SELECT ============================ */
+function selectScenario(key){
+  current=key;
+  const s=SCENARIOS[key];
+  applyBrand(key);
+  // console fill
+  document.getElementById("c-client").textContent=s.client;
+  document.getElementById("c-acct").textContent=s.account;
+  document.getElementById("c-scenario").textContent=s.scenario;
+  document.getElementById("c-hint").textContent=s.hint;
+  document.getElementById("console-eyebrow").textContent=`${s.label} · ${s.account}`;
+  const crm=document.getElementById("c-crm");crm.innerHTML="";
+  s.crm.forEach(([k,v])=>{
+    const r=document.createElement("div");r.className="r";
+    r.innerHTML=`<span>${k}</span><b>${v}</b>`;crm.appendChild(r);
+  });
+  buildConstellation("constel","constel-cap",false);
+  document.getElementById("constel-cap").textContent="6 systems · 1 customer · not connected";
+  resetRail();
+  go("console");
+}
+
+function quickScenario(key){ selectScenario(key); }
+
+/* ============================ STEP 1: SIGNAL ============================ */
+function startSignal(){
+  const s=SCENARIOS[current];
+  setStage("signal");
+  go("signal");
+  const refs=buildConstellation("constel2","constel2-cap",false);
+  document.getElementById("constel2-cap").textContent="Unifying profile…";
+  litConstellationStep(refs,"constel2-cap");
+
+  const box=document.getElementById("signals");box.innerHTML="";
+  const callout=document.getElementById("signal-callout");
+  callout.classList.remove("in");callout.innerHTML="";
+  const nav=document.getElementById("signal-nav");
+  nav.style.opacity=0;nav.style.pointerEvents="none";
+
+  s.signals.forEach((sig,i)=>{
+    const el=document.createElement("div");
+    el.className="sig"+(sig.gap?" gap":"");
+    el.innerHTML=`<div class="si">${sig.i}</div>
+      <div class="sc"><h4>${sig.h}</h4><p>${sig.p}</p></div>
+      <div class="src">${sig.src}</div>`;
+    box.appendChild(el);
+    setTimeout(()=>el.classList.add("in"), 400 + i*420);
+  });
+  const total=400 + s.signals.length*420;
+  setTimeout(()=>{
+    callout.innerHTML=`<b>Data 360 has surfaced something CRM alone couldn't.</b> ${s.callout}`;
+    callout.classList.add("in");
+  }, total+200);
+  setTimeout(()=>{
+    nav.style.opacity=1;nav.style.pointerEvents="auto";
+    nav.animate?nav.animate([{opacity:0},{opacity:1}],{duration:400}):null;
+  }, total+700);
+}
+
+/* ============================ STEP 2: INSIGHT ============================ */
+function startInsight(){
+  const s=SCENARIOS[current];
+  setStage("insight");
+  go("insight");
+  const reason=document.getElementById("reason");reason.innerHTML="";
+  document.getElementById("agent-status").textContent="Reasoning…";
+  const opp=document.getElementById("opp-card");opp.classList.remove("in");
+  const nav=document.getElementById("insight-nav");nav.style.opacity=0;nav.style.pointerEvents="none";
+
+  const cursor=document.createElement("span");cursor.className="cursor";
+  reason.appendChild(cursor);
+  const runToken=++insightToken;
+
+  s.reason.forEach((line,i)=>{
+    setTimeout(()=>{
+      if(runToken!==insightToken) return;           // superseded by a newer run
+      const d=document.createElement("div");d.className="line";d.innerHTML=line;
+      if(cursor.parentNode===reason) reason.insertBefore(d,cursor);
+      else reason.appendChild(d);
+    }, 500 + i*850);
+  });
+  const rt=500 + s.reason.length*850;
+  setTimeout(()=>{
+    if(runToken!==insightToken) return;
+    if(cursor.parentNode) cursor.remove();
+    document.getElementById("agent-status").textContent="Opportunity found";
+    // fill opp
+    document.getElementById("opp-title").textContent=s.opp.title;
+    document.getElementById("opp-desc").textContent=s.opp.desc;
+    const ev=document.getElementById("opp-evidence");ev.innerHTML="";
+    s.opp.evidence.forEach(e=>{const li=document.createElement("li");li.textContent=e;ev.appendChild(li);});
+    opp.classList.add("in");
+    countUp(document.getElementById("opp-val"), s.opp.value, 1200);
+  }, rt+200);
+  setTimeout(()=>{
+    const nav=document.getElementById("insight-nav");nav.style.opacity=1;nav.style.pointerEvents="auto";
+  }, rt+1600);
+}
+
+/* ============================ STEP 3: RECOMMEND + EXECUTE ============================ */
+function go_recommend_prep(){
+  const s=SCENARIOS[current];
+  setStage("recommend");
+  const box=document.getElementById("actions");box.innerHTML="";
+  s.actions.forEach((a,i)=>{
+    const el=document.createElement("div");el.className="action";
+    el.innerHTML=`<span class="num">${i+1}</span><span class="txt">${a}</span><span class="stat">queued</span>`;
+    box.appendChild(el);
+  });
+  document.getElementById("exec-tag").textContent="Ready";
+  document.getElementById("executeBtn").disabled=false;
+  document.getElementById("executeBtn").style.display="inline-flex";
+  const nav=document.getElementById("recommend-nav");nav.style.opacity=0;nav.style.pointerEvents="none";
+}
+
+function executePlan(){
+  const s=SCENARIOS[current];
+  setStage("action");
+  const btn=document.getElementById("executeBtn");
+  btn.disabled=true;btn.style.display="none";
+  document.getElementById("exec-tag").textContent="Running";
+  const rows=[...document.querySelectorAll("#actions .action")];
+  const toastMsgs=[
+    ["Opportunity created", s.opp.title+" · £"+s.opp.value.toLocaleString(), "Sales Cloud"],
+    ["Account executive assigned","Owner set and notified","Sales Cloud"],
+    ["Briefing generated","Account pack ready to open","Agentforce"],
+    ["Products recommended","Best-fit lines attached","Agentforce"],
+    ["Stakeholders identified","Key contacts mapped","Data 360"],
+    ["Outreach drafted","Personalised message ready for review","Agentforce"]
+  ];
+  rows.forEach((row,i)=>{
+    setTimeout(()=>{
+      rows.forEach(r=>r.classList.remove("doing"));
+      row.classList.add("doing");
+      row.querySelector(".stat").textContent="working…";
+    }, i*900);
+    setTimeout(()=>{
+      row.classList.remove("doing");row.classList.add("done");
+      row.querySelector(".stat").textContent="done";
+      toast(toastMsgs[i][0], toastMsgs[i][1], toastMsgs[i][2]);
+    }, i*900+650);
+  });
+  const total=rows.length*900+900;
+  setTimeout(()=>{
+    document.getElementById("exec-tag").textContent="Complete";
+    const nav=document.getElementById("recommend-nav");nav.style.opacity=1;nav.style.pointerEvents="auto";
+  }, total);
+}
+
+/* ============================ STEP 4: ACTIVATE (AMC) ============================ */
+function startActivate(){
+  const s=SCENARIOS[current];
+  setStage("action");
+  go("activate");
+  const j=document.getElementById("journey");j.innerHTML="";
+  const nav=document.getElementById("activate-nav");nav.style.opacity=0;nav.style.pointerEvents="none";
+
+  s.journey.forEach((d,i)=>{
+    if(i>0){
+      const conn=document.createElement("div");conn.className="jnode";conn.innerHTML='<div class="jconn"></div>';
+      j.appendChild(conn);
+      setTimeout(()=>conn.classList.add("in"), 300 + (i*2-1)*700);
+    }
+    const node=document.createElement("div");node.className="jnode";
+    let branches=`<div class="branch yes"><span class="yn">IF YES</span><b>${d.yes.t}</b><br><span>${d.yes.s}</span></div>`;
+    if(d.no) branches+=`<div class="branch no"><span class="yn">IF NO</span><b>${d.no.t}</b><br><span>${d.no.s}</span></div>`;
+    node.innerHTML=`<div class="jbox"><div class="jq">${d.q}</div><div class="jt">${d.t}</div>
+      <div class="jbranch">${branches}</div></div>`;
+    j.appendChild(node);
+    setTimeout(()=>node.classList.add("in"), 300 + i*2*700);
+  });
+  const total=300 + s.journey.length*2*700;
+  setTimeout(()=>{
+    toast("Journey live","Customer is moving through the adaptive path","Marketing Cloud");
+  }, total);
+  setTimeout(()=>{
+    const nav=document.getElementById("activate-nav");nav.style.opacity=1;nav.style.pointerEvents="auto";
+  }, total+400);
+}
+
+/* ============================ STEP 5: REVENUE ============================ */
+function startRevenue(){
+  const s=SCENARIOS[current];
+  setStage("revenue");
+  go("revenue");
+  document.getElementById("rev-acct").textContent=s.account;
+  const el=document.getElementById("rev-value");
+  el.textContent="£0";
+  setTimeout(()=>{
+    countUp(el, s.opp.value, 1600);
+    burstConfetti();
+    toast("Revenue recovered","£"+s.opp.value.toLocaleString()+" surfaced from existing data","Outcome");
+  }, 500);
+}
+
+/* ============================ HELPERS ============================ */
+function countUp(el, target, dur){
+  const start=performance.now();
+  function tick(now){
+    const p=Math.min((now-start)/dur,1);
+    const eased=1-Math.pow(1-p,3);
+    const v=Math.round(target*eased);
+    el.textContent="£"+v.toLocaleString();
+    if(p<1) requestAnimationFrame(tick);
+    else el.textContent="£"+target.toLocaleString();
+  }
+  requestAnimationFrame(tick);
+}
+
+/* toasts */
+let toastTimers=[];
+function toast(title, sub, meta){
+  const wrap=document.getElementById("toasts");
+  const t=document.createElement("div");t.className="toast";
+  t.innerHTML=`<div class="ta">✓</div><div class="tb"><b>${title}</b><span>${sub}</span><div class="tm">${meta} · just now</div></div>`;
+  wrap.appendChild(t);
+  const to=setTimeout(()=>{
+    t.classList.add("out");
+    setTimeout(()=>t.remove(),400);
+  }, 4200);
+  toastTimers.push(to);
+}
+function clearToasts(){
+  toastTimers.forEach(clearTimeout);toastTimers=[];
+  document.getElementById("toasts").innerHTML="";
+}
+
+/* confetti */
+function burstConfetti(){
+  const c=document.getElementById("confetti");
+  c.style.display="block";
+  const ctx=c.getContext("2d");
+  const dpr=window.devicePixelRatio||1;
+  c.width=innerWidth*dpr;c.height=innerHeight*dpr;ctx.scale(dpr,dpr);
+  const colors=["#44D0BD","#33A5FA","#FFC24B","#EAF2FF"];
+  const parts=[];
+  const originX=innerWidth/2, originY=innerHeight*0.42;
+  for(let i=0;i<140;i++){
+    const ang=Math.random()*Math.PI*2, sp=4+Math.random()*9;
+    parts.push({x:originX,y:originY,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp-6,
+      r:3+Math.random()*5,c:colors[i%colors.length],rot:Math.random()*6,vr:(-.3+Math.random()*.6),life:0});
+  }
+  let frame=0;
+  function draw(){
+    ctx.clearRect(0,0,innerWidth,innerHeight);
+    frame++;
+    let alive=false;
+    parts.forEach(p=>{
+      p.vy+=0.22;p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;p.life++;
+      if(p.y<innerHeight+40){alive=true;}
+      const a=Math.max(0,1-p.life/120);
+      ctx.save();ctx.globalAlpha=a;ctx.translate(p.x,p.y);ctx.rotate(p.rot);
+      ctx.fillStyle=p.c;ctx.fillRect(-p.r/2,-p.r/2,p.r,p.r*1.6);ctx.restore();
+    });
+    if(alive && frame<200) requestAnimationFrame(draw);
+    else { ctx.clearRect(0,0,innerWidth,innerHeight); c.style.display="none"; }
+  }
+  requestAnimationFrame(draw);
+}
+
+/* insight -> recommend: prep action list, then show */
+function toRecommend(){ go_recommend_prep(); go("recommend"); }
+
+/* ============================ INIT ============================ */
+window.addEventListener("DOMContentLoaded",()=>{
+  heroArt();
+  buildCards();
+});
+</script>
+</body>
+</html>
